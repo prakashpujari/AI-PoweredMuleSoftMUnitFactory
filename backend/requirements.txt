@@ -12,10 +12,9 @@ psycopg2-binary==2.9.10
 
 # Cache
 redis==5.2.1
-aioredis==2.0.1
 
 # Vector DB
-pinecone-client==5.0.1
+pinecone-client==4.1.2
 
 # AI / LLM
 groq==0.13.1
@@ -40,16 +39,11 @@ xmltodict==0.14.2
 PyYAML==6.0.2
 ruamel.yaml==0.18.6
 
-# Reporting
+# Reporting (PDF skipped in serverless — weasyprint needs system libs)
 reportlab==4.2.5
 jinja2==3.1.4
-weasyprint==62.3
 
 # Observability
-opentelemetry-api==1.29.0
-opentelemetry-sdk==1.29.0
-opentelemetry-instrumentation-fastapi==0.50b0
-opentelemetry-exporter-otlp==1.29.0
 prometheus-client==0.21.1
 prometheus-fastapi-instrumentator==7.0.0
 structlog==24.4.0
@@ -58,14 +52,12 @@ structlog==24.4.0
 pytest==8.3.4
 pytest-asyncio==0.25.0
 pytest-cov==6.0.0
-httpx==0.28.1
 factory-boy==3.3.1
 
 # Utilities
 pydantic==2.10.4
 pydantic-settings==2.7.0
 tenacity==9.0.0
-celery==5.4.0
 aiofiles==24.1.0
 python-slugify==8.0.4
 arrow==1.3.0
