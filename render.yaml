@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: ai-munit-factory-api
+    runtime: python
+    region: oregon
+    plan: free
+    branch: main
+    rootDir: backend
+    buildCommand: >
+      apt-get install -y -qq libpangocairo-1.0-0 libpango-1.0-0
+      libcairo2 libffi-dev libgdk-pixbuf2.0-0 shared-mime-info 2>/dev/null || true;
+      pip install --upgrade pip;
+      pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_INDEX_NAME
+        value: mortgageindex
+      - key: PINECONE_HOST
+        value: https://mortgageindex-96hwyzx.svc.aped-4627-b74a.pinecone.io
+      - key: SECRET_KEY
+        sync: false
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "480"
+      - key: PYTHON_VERSION
+        value: "3.12.0"
