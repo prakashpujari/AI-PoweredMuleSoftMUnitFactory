@@ -11,12 +11,21 @@ from app.config import get_settings
 
 settings = get_settings()
 
+_connect_args = {}
+if "ssl=require" in settings.DATABASE_URL or "render.com" in settings.DATABASE_URL:
+    import ssl as _ssl
+    _ctx = _ssl.create_default_context()
+    _ctx.check_hostname = False
+    _ctx.verify_mode = _ssl.CERT_NONE
+    _connect_args = {"ssl": _ctx}
+
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    settings.DATABASE_URL.replace("?ssl=require", ""),
     pool_size=settings.DATABASE_POOL_SIZE,
     max_overflow=settings.DATABASE_MAX_OVERFLOW,
     pool_pre_ping=True,
     echo=settings.DEBUG,
+    connect_args=_connect_args,
 )
 
 AsyncSessionFactory = async_sessionmaker(

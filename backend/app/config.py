@@ -53,8 +53,9 @@ class Settings(BaseSettings):
 
     # ── Pinecone ──────────────────────────────────────────────────────────────
     PINECONE_API_KEY: str = ""
-    PINECONE_ENVIRONMENT: str = "us-east-1"
-    PINECONE_INDEX_NAME: str = "munit-factory"
+    PINECONE_ENVIRONMENT: str = "aped-4627-b74a"
+    PINECONE_INDEX_NAME: str = "mortgageindex"
+    PINECONE_HOST: str = ""
     PINECONE_DIMENSION: int = 1536
 
     # ── MuleSoft / Anypoint ───────────────────────────────────────────────────
