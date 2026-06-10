@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: munit-factory
+  labels:
+    app.kubernetes.io/name: ai-munit-factory
+    environment: production

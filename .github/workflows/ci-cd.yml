@@ -1,0 +1,332 @@
+name: AI-MUnit-Factory CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop, "release/**"]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_API: ${{ github.repository }}/api
+  IMAGE_NAME_FRONTEND: ${{ github.repository }}/frontend
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  # ── Stage 1: Static Analysis & Lint ───────────────────────────────────────
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install backend deps
+        run: pip install -r backend/requirements.txt ruff mypy
+
+      - name: Lint with ruff
+        run: ruff check backend/app/ --output-format=github
+
+      - name: Type check with mypy
+        run: mypy backend/app/ --ignore-missing-imports --no-error-summary
+        continue-on-error: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm install
+
+      - name: TypeScript check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+  # ── Stage 2: Backend Unit Tests ────────────────────────────────────────────
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    needs: static-analysis
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: munit_test
+          POSTGRES_USER: munit
+          POSTGRES_PASSWORD: munit_pass
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt pytest-cov
+
+      - name: Run unit tests with coverage
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://munit:munit_pass@localhost:5432/munit_test
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: test-secret-key-32-chars-minimum
+          GROQ_API_KEY: test_key
+          ANTHROPIC_API_KEY: test_key
+          OPENAI_API_KEY: test_key
+        run: |
+          pytest tests/ \
+            --cov=app \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=80 \
+            -v
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        with:
+          file: backend/coverage.xml
+          flags: backend
+
+  # ── Stage 3: Frontend Build ────────────────────────────────────────────────
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    needs: static-analysis
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package.json
+
+      - name: Install and build
+        working-directory: frontend
+        run: |
+          npm install
+          npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 7
+
+  # ── Stage 4: Generate MUnit Tests (AI pipeline) ────────────────────────────
+  generate-munit:
+    name: AI MUnit Generation
+    runs-on: ubuntu-latest
+    needs: backend-tests
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Validate MUnit generation engine
+        working-directory: backend
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          python -c "
+          import asyncio
+          from app.services.munit_generator import MUnitGenerator
+          from app.parsers.mule_xml_parser import FlowInfo
+          gen = MUnitGenerator()
+          flow = FlowInfo()
+          flow.name = 'test-flow'
+          flow.connectors_used = ['http']
+          flow.raw_xml = '<flow name=\"test-flow\"/>'
+          types = gen.build_test_types_for_flow(flow)
+          assert 'happy_path' in types
+          print('MUnit generator validation passed')
+          "
+
+  # ── Stage 5: Docker Build & Push ──────────────────────────────────────────
+  docker-build:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-build]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata (API)
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_API }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=sha,prefix=git-
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          target: production
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+
+      - name: Extract metadata (Frontend)
+        id: meta-fe
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
+
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ steps.meta-fe.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Stage 6: Deploy to DEV ────────────────────────────────────────────────
+  deploy-dev:
+    name: Deploy to DEV
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: development
+      url: https://munit-factory-dev.example.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          kubeconfig: ${{ secrets.KUBECONFIG_DEV }}
+
+      - name: Deploy to DEV namespace
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/configmap.yaml
+          kubectl set image deployment/munit-api api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_API }}:develop -n munit-factory
+          kubectl set image deployment/munit-frontend frontend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:develop -n munit-factory
+          kubectl rollout status deployment/munit-api -n munit-factory --timeout=120s
+
+  # ── Stage 7: Deploy to QA ─────────────────────────────────────────────────
+  deploy-qa:
+    name: Deploy to QA
+    runs-on: ubuntu-latest
+    needs: deploy-dev
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: qa
+      url: https://munit-factory-qa.example.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          kubeconfig: ${{ secrets.KUBECONFIG_QA }}
+
+      - name: Deploy to QA
+        run: |
+          kubectl apply -f k8s/
+          kubectl rollout status deployment/munit-api -n munit-factory --timeout=180s
+
+      - name: Run smoke tests
+        run: |
+          curl -f https://munit-factory-qa.example.com/health || exit 1
+
+  # ── Stage 8: Deploy to PROD ────────────────────────────────────────────────
+  deploy-prod:
+    name: Deploy to PRODUCTION
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://munit-factory.example.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          kubeconfig: ${{ secrets.KUBECONFIG_PROD }}
+
+      - name: Deploy to PRODUCTION
+        run: |
+          kubectl apply -f k8s/
+          kubectl set image deployment/munit-api api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_API }}:main -n munit-factory
+          kubectl set image deployment/munit-frontend frontend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:main -n munit-factory
+          kubectl rollout status deployment/munit-api -n munit-factory --timeout=300s
+
+      - name: Production smoke test
+        run: |
+          sleep 10
+          curl -f https://munit-factory.example.com/health || exit 1
+          echo "Production deployment successful"

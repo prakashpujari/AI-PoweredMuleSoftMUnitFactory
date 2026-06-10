@@ -1,0 +1,73 @@
+export const MOCK_DASHBOARD = {
+    generated_at: new Date().toISOString(),
+    applications: { total_scanned: 127, total_tested: 112, meeting_coverage_target: 98 },
+    tests: { total_executed: 15420, passed: 15178, failed: 242, pass_rate: 98.4 },
+    coverage: { average_overall: 95.7, target: 95.0 },
+    scores: {
+        production_readiness: 96.2,
+        security: 97.1,
+        performance: 95.4,
+        risk: 11.8,
+        coverage: 95.7,
+    },
+    failures: {
+        by_severity: { critical: 8, high: 34, medium: 112, low: 88 },
+    },
+    breakdown: {
+        by_api_type: { system: 42, process: 51, experience: 34 },
+    },
+    recent_runs: [
+        { id: "1", run_number: 47, status: "completed", total: 340, passed: 338, failed: 2, pass_rate: 99.4, created_at: new Date(Date.now() - 3600000).toISOString() },
+        { id: "2", run_number: 46, status: "completed", total: 295, passed: 291, failed: 4, pass_rate: 98.6, created_at: new Date(Date.now() - 7200000).toISOString() },
+        { id: "3", run_number: 45, status: "completed", total: 412, passed: 408, failed: 4, pass_rate: 99.0, created_at: new Date(Date.now() - 14400000).toISOString() },
+        { id: "4", run_number: 44, status: "failed", total: 189, passed: 172, failed: 17, pass_rate: 91.0, created_at: new Date(Date.now() - 86400000).toISOString() },
+        { id: "5", run_number: 43, status: "completed", total: 520, passed: 517, failed: 3, pass_rate: 99.4, created_at: new Date(Date.now() - 172800000).toISOString() },
+    ],
+};
+export const MOCK_EXECUTIVE_REPORT = {
+    applications_scanned: 127,
+    applications_tested: 112,
+    tests_executed: 15420,
+    tests_passed: 15178,
+    tests_failed: 242,
+    pass_rate: 98.4,
+    coverage_percent: 95.7,
+    security_score: 97.1,
+    performance_score: 95.4,
+    production_readiness: 96.2,
+    migration_readiness: 78.5,
+    risk_level: "LOW",
+    recommendation: "APPROVED FOR PRODUCTION",
+    confidence_score: 0.96,
+    business_unit_breakdown: [
+        { business_unit: "Commerce", count: 28, avg_coverage: 97.2 },
+        { business_unit: "Finance", count: 24, avg_coverage: 96.8 },
+        { business_unit: "CRM", count: 21, avg_coverage: 95.1 },
+        { business_unit: "Supply Chain", count: 19, avg_coverage: 94.3 },
+        { business_unit: "Platform", count: 18, avg_coverage: 93.7 },
+        { business_unit: "Analytics", count: 17, avg_coverage: 91.5 },
+    ],
+    domain_breakdown: [
+        { domain: "Orders", count: 15, avg_readiness: 97.0 },
+        { domain: "Payments", count: 12, avg_readiness: 96.5 },
+        { domain: "Customer", count: 18, avg_readiness: 95.8 },
+        { domain: "Inventory", count: 14, avg_readiness: 94.2 },
+        { domain: "Products", count: 16, avg_readiness: 93.0 },
+    ],
+    api_type_breakdown: [
+        { api_type: "system", count: 42 },
+        { api_type: "process", count: 51 },
+        { api_type: "experience", count: 34 },
+    ],
+    generated_at: new Date().toISOString(),
+};
+export const MOCK_APPLICATIONS = [
+    { id: "1", name: "order-process-api", version: "2.1.0", mule_runtime_version: "4.6.0", business_unit: "Commerce", domain: "Orders", api_type: "process", status: "tested", flows_count: 18, coverage_score: 97.2, security_score: 98.0, performance_score: 96.5, quality_score: 97.2, production_readiness_score: 97.5, migration_readiness_score: 82.0, risk_score: 8.5, environment: "production" },
+    { id: "2", name: "customer-exp-api", version: "1.5.2", mule_runtime_version: "4.6.0", business_unit: "CRM", domain: "Customer", api_type: "experience", status: "tested", flows_count: 12, coverage_score: 95.5, security_score: 97.2, performance_score: 94.8, quality_score: 95.8, production_readiness_score: 96.0, migration_readiness_score: 79.5, risk_score: 11.2, environment: "production" },
+    { id: "3", name: "inventory-sys-api", version: "3.0.1", mule_runtime_version: "4.4.0", business_unit: "Supply Chain", domain: "Inventory", api_type: "system", status: "tested", flows_count: 22, coverage_score: 94.3, security_score: 95.8, performance_score: 97.1, quality_score: 95.7, production_readiness_score: 94.8, migration_readiness_score: 65.0, risk_score: 18.5, environment: "production" },
+    { id: "4", name: "payment-process-api", version: "4.2.0", mule_runtime_version: "4.6.0", business_unit: "Finance", domain: "Payments", api_type: "process", status: "tested", flows_count: 15, coverage_score: 98.1, security_score: 99.2, performance_score: 96.8, quality_score: 98.0, production_readiness_score: 98.5, migration_readiness_score: 85.0, risk_score: 5.2, environment: "production" },
+    { id: "5", name: "product-catalog-api", version: "1.8.0", mule_runtime_version: "4.7.0", business_unit: "Commerce", domain: "Products", api_type: "experience", status: "analyzed", flows_count: 9, coverage_score: 88.4, security_score: 92.1, performance_score: 93.5, quality_score: 91.3, production_readiness_score: 89.5, migration_readiness_score: 91.0, risk_score: 22.1, environment: "staging" },
+    { id: "6", name: "salesforce-sys-api", version: "2.3.0", mule_runtime_version: "4.6.0", business_unit: "CRM", domain: "Salesforce", api_type: "system", status: "tested", flows_count: 14, coverage_score: 96.8, security_score: 97.5, performance_score: 95.2, quality_score: 96.5, production_readiness_score: 96.8, migration_readiness_score: 76.5, risk_score: 12.4, environment: "production" },
+    { id: "7", name: "notification-api", version: "1.2.1", mule_runtime_version: "4.6.0", business_unit: "Platform", domain: "Notifications", api_type: "process", status: "tested", flows_count: 8, coverage_score: 93.7, security_score: 94.8, performance_score: 96.2, quality_score: 94.9, production_readiness_score: 94.2, migration_readiness_score: 80.0, risk_score: 14.8, environment: "production" },
+    { id: "8", name: "reporting-exp-api", version: "2.0.0", mule_runtime_version: "4.5.0", business_unit: "Analytics", domain: "Reports", api_type: "experience", status: "generating", flows_count: 11, coverage_score: 76.2, security_score: 88.5, performance_score: 91.0, quality_score: 85.2, production_readiness_score: 82.5, migration_readiness_score: 70.0, risk_score: 31.5, environment: "staging" },
+];
