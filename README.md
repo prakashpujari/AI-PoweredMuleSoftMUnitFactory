@@ -24,6 +24,8 @@ AI-MUnit-Factory automatically:
 
 ## Architecture
 
+<img width="1408" height="768" alt="Gemini_Generated_Image_kzrmimkzrmimkzrm" src="https://github.com/user-attachments/assets/ee6efd83-829f-46a8-84ab-41a10cff3400" />
+
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
 │                         AI-MUnit-Factory                             │
