@@ -7,10 +7,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 
-COPY app/ app/
+COPY backend/app/ app/
 
 RUN useradd --system --uid 1001 munit && chown -R munit:munit /app
 USER munit
