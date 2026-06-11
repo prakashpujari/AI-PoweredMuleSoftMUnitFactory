@@ -170,12 +170,16 @@ async def list_applications(
             "mule_runtime_version": a.mule_runtime_version,
             "business_unit": a.business_unit,
             "domain": a.domain,
-            "api_type": str(a.api_type),
-            "status": str(a.status),
+            "environment": a.environment,
+            "api_type": a.api_type.value,
+            "status": a.status.value,
             "flows_count": a.flows_count,
             "coverage_score": a.coverage_score,
             "security_score": a.security_score,
+            "performance_score": a.performance_score,
+            "quality_score": a.quality_score,
             "production_readiness_score": a.production_readiness_score,
+            "migration_readiness_score": a.migration_readiness_score,
             "risk_score": a.risk_score,
         }
         for a in apps

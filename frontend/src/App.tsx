@@ -6,7 +6,6 @@ import {
   Navigate,
   Link,
   useLocation,
-  useNavigate,
 } from "react-router-dom";
 import {
   Box,
@@ -157,8 +156,6 @@ const AuthenticatedShell: React.FC<{
   onLogout: () => void;
   children: React.ReactNode;
 }> = ({ authenticated, onLogout, children }) => {
-  const navigate = useNavigate();
-
   if (!authenticated) {
     return <Navigate to="/login" replace />;
   }

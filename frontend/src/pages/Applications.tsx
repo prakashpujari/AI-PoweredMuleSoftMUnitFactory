@@ -6,6 +6,7 @@ import {
 } from "@mui/material";
 import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import { Add, Refresh, PlayArrow, Assessment } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
 import { applicationsApi, munitApi, executionApi } from "../services/api";
 import { MOCK_APPLICATIONS } from "../services/mockData";
 import type { Application } from "../types";
@@ -34,6 +35,7 @@ const ScoreBar: React.FC<{ value: number }> = ({ value }) => (
 );
 
 const Applications: React.FC = () => {
+  const navigate = useNavigate();
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +50,7 @@ const Applications: React.FC = () => {
     ai_provider: "groq",
   });
   const [scanning, setScanning] = useState(false);
+  const [loadingRows, setLoadingRows] = useState<Record<string, "generating" | "executing">>({});
 
   const fetchApps = async () => {
     setLoading(true);
@@ -55,7 +58,7 @@ const Applications: React.FC = () => {
       const res = await applicationsApi.list({ limit: 200 });
       setApps(res.data);
     } catch (_e: any) {
-      setApps(MOCK_APPLICATIONS);  // fallback to demo data
+      setApps(MOCK_APPLICATIONS);
     } finally {
       setLoading(false);
     }
@@ -65,56 +68,74 @@ const Applications: React.FC = () => {
 
   const handleScan = async () => {
     setScanning(true);
+    setError(null);
     try {
       await applicationsApi.scan(scanForm);
       setSuccess("Application scanned and inventoried successfully");
       setScanDialogOpen(false);
+      setScanForm({ repo_path: "", business_unit: "", domain: "", environment: "development", api_type: "unknown", ai_provider: "groq" });
       fetchApps();
     } catch (e: any) {
-      setError(e.response?.data?.message ?? "Scan failed");
+      const detail = e.response?.data?.detail ?? e.response?.data?.message ?? "Scan failed";
+      setError(typeof detail === "string" ? detail : JSON.stringify(detail));
     } finally {
       setScanning(false);
     }
   };
 
   const handleGenerateTests = async (appId: string) => {
+    setLoadingRows(prev => ({ ...prev, [appId]: "generating" }));
+    setError(null);
     try {
       await munitApi.generate({ application_id: appId, ai_provider: "groq" });
       setSuccess("MUnit tests generated successfully");
       fetchApps();
     } catch (e: any) {
-      setError(e.response?.data?.message ?? "Test generation failed");
+      const detail = e.response?.data?.detail ?? e.response?.data?.message ?? "Test generation failed";
+      setError(typeof detail === "string" ? detail : JSON.stringify(detail));
+    } finally {
+      setLoadingRows(prev => { const n = { ...prev }; delete n[appId]; return n; });
     }
   };
 
   const handleExecute = async (appId: string) => {
+    setLoadingRows(prev => ({ ...prev, [appId]: "executing" }));
+    setError(null);
     try {
       await executionApi.run({ application_id: appId });
-      setSuccess("Test execution started");
+      setSuccess("Test execution completed");
       fetchApps();
     } catch (e: any) {
-      setError(e.response?.data?.message ?? "Execution failed");
+      const detail = e.response?.data?.detail ?? e.response?.data?.message ?? "Execution failed";
+      setError(typeof detail === "string" ? detail : JSON.stringify(detail));
+    } finally {
+      setLoadingRows(prev => { const n = { ...prev }; delete n[appId]; return n; });
     }
   };
 
   const columns: GridColDef<Application>[] = [
-    { field: "name", headerName: "Application", width: 200, renderCell: (p) => (
-      <Typography variant="body2" fontWeight={600}>{p.value}</Typography>
-    )},
+    {
+      field: "name", headerName: "Application", width: 200,
+      renderCell: (p) => <Typography variant="body2" fontWeight={600}>{p.value}</Typography>,
+    },
     { field: "mule_runtime_version", headerName: "Runtime", width: 100 },
-    { field: "api_type", headerName: "API Type", width: 110, renderCell: (p) => (
-      <Chip label={p.value?.toUpperCase()} size="small" variant="outlined" />
-    )},
-    { field: "status", headerName: "Status", width: 110, renderCell: (p) => (
-      <StatusChip status={p.value} />
-    )},
+    {
+      field: "api_type", headerName: "API Type", width: 110,
+      renderCell: (p) => <Chip label={String(p.value ?? "").toUpperCase()} size="small" variant="outlined" />,
+    },
+    {
+      field: "status", headerName: "Status", width: 110,
+      renderCell: (p) => <StatusChip status={p.value} />,
+    },
     { field: "flows_count", headerName: "Flows", width: 80, type: "number" },
-    { field: "coverage_score", headerName: "Coverage", width: 160, renderCell: (p) => (
-      <ScoreBar value={p.value ?? 0} />
-    )},
-    { field: "production_readiness_score", headerName: "Readiness", width: 160, renderCell: (p) => (
-      <ScoreBar value={p.value ?? 0} />
-    )},
+    {
+      field: "coverage_score", headerName: "Coverage", width: 160,
+      renderCell: (p) => <ScoreBar value={p.value ?? 0} />,
+    },
+    {
+      field: "production_readiness_score", headerName: "Readiness", width: 160,
+      renderCell: (p) => <ScoreBar value={p.value ?? 0} />,
+    },
     { field: "business_unit", headerName: "Business Unit", width: 140 },
     { field: "environment", headerName: "Environment", width: 120 },
     {
@@ -122,25 +143,46 @@ const Applications: React.FC = () => {
       headerName: "Actions",
       width: 140,
       sortable: false,
-      renderCell: (p: GridRenderCellParams<Application>) => (
-        <Box display="flex" gap={0.5}>
-          <Tooltip title="Generate MUnit Tests">
-            <IconButton size="small" color="primary" onClick={() => handleGenerateTests(p.row.id)}>
-              <Add fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Execute Tests">
-            <IconButton size="small" color="success" onClick={() => handleExecute(p.row.id)}>
-              <PlayArrow fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="View Report">
-            <IconButton size="small" color="secondary">
-              <Assessment fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      ),
+      renderCell: (p: GridRenderCellParams<Application>) => {
+        const rowLoading = loadingRows[p.row.id];
+        return (
+          <Box display="flex" gap={0.5}>
+            <Tooltip title="Generate MUnit Tests">
+              <span>
+                <IconButton
+                  size="small"
+                  color="primary"
+                  onClick={() => handleGenerateTests(p.row.id)}
+                  disabled={!!rowLoading}
+                >
+                  {rowLoading === "generating"
+                    ? <CircularProgress size={16} />
+                    : <Add fontSize="small" />}
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Execute Tests">
+              <span>
+                <IconButton
+                  size="small"
+                  color="success"
+                  onClick={() => handleExecute(p.row.id)}
+                  disabled={!!rowLoading}
+                >
+                  {rowLoading === "executing"
+                    ? <CircularProgress size={16} color="inherit" />
+                    : <PlayArrow fontSize="small" />}
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="View Executive Report">
+              <IconButton size="small" color="secondary" onClick={() => navigate("/executive-report")}>
+                <Assessment fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        );
+      },
     },
   ];
 
@@ -149,9 +191,7 @@ const Applications: React.FC = () => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h5" fontWeight={700}>Applications</Typography>
         <Box display="flex" gap={2}>
-          <Button startIcon={<Refresh />} onClick={fetchApps} variant="outlined">
-            Refresh
-          </Button>
+          <Button startIcon={<Refresh />} onClick={fetchApps} variant="outlined">Refresh</Button>
           <Button startIcon={<Add />} variant="contained" onClick={() => setScanDialogOpen(true)}>
             Scan Application
           </Button>
@@ -183,6 +223,7 @@ const Applications: React.FC = () => {
               placeholder="/path/to/mule-project"
               required
               fullWidth
+              helperText="Absolute path to the MuleSoft project root directory"
             />
             <TextField
               label="Business Unit"
@@ -197,8 +238,24 @@ const Applications: React.FC = () => {
               fullWidth
             />
             <FormControl fullWidth>
+              <InputLabel>Environment</InputLabel>
+              <Select
+                label="Environment"
+                value={scanForm.environment}
+                onChange={e => setScanForm(f => ({ ...f, environment: e.target.value }))}
+              >
+                <MenuItem value="development">Development</MenuItem>
+                <MenuItem value="staging">Staging</MenuItem>
+                <MenuItem value="production">Production</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl fullWidth>
               <InputLabel>API Type</InputLabel>
-              <Select value={scanForm.api_type} onChange={e => setScanForm(f => ({ ...f, api_type: e.target.value }))}>
+              <Select
+                label="API Type"
+                value={scanForm.api_type}
+                onChange={e => setScanForm(f => ({ ...f, api_type: e.target.value }))}
+              >
                 <MenuItem value="system">System API</MenuItem>
                 <MenuItem value="process">Process API</MenuItem>
                 <MenuItem value="experience">Experience API</MenuItem>
@@ -207,7 +264,11 @@ const Applications: React.FC = () => {
             </FormControl>
             <FormControl fullWidth>
               <InputLabel>AI Provider</InputLabel>
-              <Select value={scanForm.ai_provider} onChange={e => setScanForm(f => ({ ...f, ai_provider: e.target.value }))}>
+              <Select
+                label="AI Provider"
+                value={scanForm.ai_provider}
+                onChange={e => setScanForm(f => ({ ...f, ai_provider: e.target.value }))}
+              >
                 <MenuItem value="groq">Groq (llama-3.3-70b)</MenuItem>
                 <MenuItem value="anthropic">Claude (Anthropic)</MenuItem>
                 <MenuItem value="openai">GPT-4o (OpenAI)</MenuItem>
@@ -217,7 +278,11 @@ const Applications: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setScanDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleScan} variant="contained" disabled={!scanForm.repo_path || scanning}>
+          <Button
+            onClick={handleScan}
+            variant="contained"
+            disabled={!scanForm.repo_path.trim() || scanning}
+          >
             {scanning ? <CircularProgress size={20} /> : "Scan"}
           </Button>
         </DialogActions>

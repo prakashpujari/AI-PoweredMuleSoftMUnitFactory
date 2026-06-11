@@ -38,13 +38,14 @@ const ExecutiveReport = () => {
     useEffect(() => {
         reportsApi.getExecutive()
             .then(res => setReport(res.data))
-            .catch(_err => setReport(MOCK_EXECUTIVE_REPORT)) // fallback to demo data
+            .catch((_err) => {
+            setError("Could not load live data — showing demo report");
+            setReport(MOCK_EXECUTIVE_REPORT);
+        })
             .finally(() => setLoading(false));
     }, []);
     if (loading)
         return (_jsx(Box, { display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", children: _jsx(CircularProgress, { size: 60 }) }));
-    if (error)
-        return _jsx(Alert, { severity: "error", sx: { m: 3 }, children: error });
     if (!report)
         return null;
     const buChartData = report.business_unit_breakdown.map(b => ({
@@ -52,7 +53,7 @@ const ExecutiveReport = () => {
         coverage: b.avg_coverage,
         count: b.count,
     }));
-    return (_jsxs(Box, { sx: { p: 3 }, children: [_jsxs(Box, { display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 3, children: [_jsxs(Box, { children: [_jsx(Typography, { variant: "h4", fontWeight: 700, color: "primary", children: "Executive Report" }), _jsxs(Typography, { color: "text.secondary", children: ["Generated: ", new Date(report.generated_at).toLocaleString()] })] }), _jsx(Button, { variant: "contained", startIcon: _jsx(Download, {}), size: "large", children: "Download PDF" })] }), _jsx(Box, { mb: 3, display: "flex", justifyContent: "center", children: _jsx(RecommendationBadge, { text: report.recommendation }) }), _jsx(Grid, { container: true, spacing: 2, mb: 3, children: [
+    return (_jsxs(Box, { sx: { p: 3 }, children: [error && (_jsx(Alert, { severity: "info", sx: { mb: 2 }, onClose: () => setError(null), children: error })), _jsxs(Box, { display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 3, children: [_jsxs(Box, { children: [_jsx(Typography, { variant: "h4", fontWeight: 700, color: "primary", children: "Executive Report" }), _jsxs(Typography, { color: "text.secondary", children: ["Generated: ", new Date(report.generated_at).toLocaleString()] })] }), _jsx(Button, { variant: "contained", startIcon: _jsx(Download, {}), size: "large", onClick: () => window.print(), children: "Download PDF" })] }), _jsx(Box, { mb: 3, display: "flex", justifyContent: "center", children: _jsx(RecommendationBadge, { text: report.recommendation }) }), _jsx(Grid, { container: true, spacing: 2, mb: 3, children: [
                     { label: "Applications Scanned", value: report.applications_scanned },
                     { label: "Applications Tested", value: report.applications_tested },
                     { label: "Tests Executed", value: report.tests_executed.toLocaleString() },

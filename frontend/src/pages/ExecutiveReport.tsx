@@ -78,7 +78,10 @@ const ExecutiveReport: React.FC = () => {
   useEffect(() => {
     reportsApi.getExecutive()
       .then(res => setReport(res.data))
-      .catch(_err => setReport(MOCK_EXECUTIVE_REPORT))  // fallback to demo data
+      .catch((_err) => {
+        setError("Could not load live data — showing demo report");
+        setReport(MOCK_EXECUTIVE_REPORT);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -87,7 +90,6 @@ const ExecutiveReport: React.FC = () => {
       <CircularProgress size={60} />
     </Box>
   );
-  if (error) return <Alert severity="error" sx={{ m: 3 }}>{error}</Alert>;
   if (!report) return null;
 
   const buChartData = report.business_unit_breakdown.map(b => ({
@@ -98,6 +100,11 @@ const ExecutiveReport: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
+      {error && (
+        <Alert severity="info" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
         <Box>
@@ -108,7 +115,7 @@ const ExecutiveReport: React.FC = () => {
             Generated: {new Date(report.generated_at).toLocaleString()}
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<Download />} size="large">
+        <Button variant="contained" startIcon={<Download />} size="large" onClick={() => window.print()}>
           Download PDF
         </Button>
       </Box>

@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class ScanRequest(BaseModel):
-    repo_path: str = Field(..., description="Absolute path to the MuleSoft project root")
+    repo_path: str = Field(..., min_length=1, description="Absolute path to the MuleSoft project root")
     business_unit: Optional[str] = None
     domain: Optional[str] = None
     environment: Optional[str] = "development"

@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.agents.munit_generation_agent import MUnitGenerationAgent
 from app.agents.coverage_agent import CoverageAgent
 from app.api.deps import DBSession, WriteUser
-from app.models.application import Application
+from app.models.application import Application, ApplicationStatus
 from app.models.flow import Flow
 from app.models.test_case import TestCase, TestType, TestStatus
 from app.schemas.requests import GenerateMUnitRequest
@@ -101,7 +101,7 @@ async def generate_munit(
     # Update application scores
     coverage_report = state.get("coverage_report", {})
     app.coverage_score = coverage_report.get("overall_coverage", 0.0)
-    app.status = "tested"
+    app.status = ApplicationStatus.TESTED
 
     await db.commit()
 

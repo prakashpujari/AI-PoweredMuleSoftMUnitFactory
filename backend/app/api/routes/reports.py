@@ -78,7 +78,7 @@ async def get_executive_report(
         .group_by(Application.api_type)
     )
     api_breakdown = [
-        {"api_type": str(row[0]), "count": row[1]}
+        {"api_type": row[0].value if hasattr(row[0], "value") else str(row[0]), "count": row[1]}
         for row in api_stats
     ]
 
