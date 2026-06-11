@@ -14,6 +14,7 @@ except ImportError:
 from app.api.routes import scan, munit, execution, coverage, failures, migration, dashboard, reports, auth
 from app.config import get_settings
 from app.database import create_tables
+import app.models  # noqa: F401 — ensures all ORM models register with Base.metadata
 from app.utils.exceptions import register_exception_handlers
 from app.utils.logging import configure_logging, get_logger
 
@@ -25,7 +26,11 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     configure_logging()
     logger.info("startup", app=settings.APP_NAME, version=settings.APP_VERSION, env=settings.APP_ENV)
-    await create_tables()
+    try:
+        await create_tables()
+        logger.info("database_ready")
+    except Exception as exc:
+        logger.warning("database_init_failed", error=str(exc))
     yield
     logger.info("shutdown", app=settings.APP_NAME)
 
