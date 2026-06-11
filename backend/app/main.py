@@ -5,7 +5,11 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from prometheus_fastapi_instrumentator import Instrumentator
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+    _PROMETHEUS_ENABLED = True
+except ImportError:
+    _PROMETHEUS_ENABLED = False
 
 from app.api.routes import scan, munit, execution, coverage, failures, migration, dashboard, reports, auth
 from app.config import get_settings
@@ -66,7 +70,8 @@ def create_app() -> FastAPI:
     app.include_router(reports.router, prefix=prefix)
 
     # ── Prometheus ────────────────────────────────────────────────────────────
-    Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+    if _PROMETHEUS_ENABLED:
+        Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
     # ── Health ────────────────────────────────────────────────────────────────
     @app.get("/health", tags=["health"])
