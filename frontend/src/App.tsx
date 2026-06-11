@@ -1,13 +1,33 @@
-import React, { useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
 import {
-  Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText,
-  AppBar, Toolbar, Typography, CssBaseline, ThemeProvider, createTheme,
-  Avatar, Chip, Divider,
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  Link,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+import {
+  Box,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+  CssBaseline,
+  ThemeProvider,
+  createTheme,
+  Chip,
+  Divider,
 } from "@mui/material";
 import {
-  Dashboard as DashboardIcon, Apps, Assessment, BugReport,
-  Storage, Security, Speed, ExitToApp,
+  Dashboard as DashboardIcon,
+  Apps,
+  Assessment,
+  ExitToApp,
 } from "@mui/icons-material";
 
 import Dashboard from "./pages/Dashboard";
@@ -25,7 +45,9 @@ const theme = createTheme({
     fontFamily: '"Inter", "Roboto", "Helvetica", sans-serif',
   },
   components: {
-    MuiButton: { styleOverrides: { root: { borderRadius: 8, textTransform: "none", fontWeight: 600 } } },
+    MuiButton: {
+      styleOverrides: { root: { borderRadius: 8, textTransform: "none", fontWeight: 600 } },
+    },
     MuiCard: { styleOverrides: { root: { borderRadius: 12 } } },
   },
 });
@@ -38,14 +60,10 @@ const NAV_ITEMS = [
   { label: "Executive Report", path: "/executive-report", icon: <Assessment /> },
 ];
 
-const Sidebar: React.FC = () => {
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+
+const Sidebar: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const location = useLocation();
-
-  const handleLogout = () => {
-    localStorage.removeItem("access_token");
-    window.location.href = "/login";
-  };
-
   return (
     <Drawer
       variant="permanent"
@@ -59,7 +77,6 @@ const Sidebar: React.FC = () => {
         },
       }}
     >
-      {/* Logo */}
       <Box sx={{ p: 3, pb: 2 }}>
         <Typography variant="h6" fontWeight={800} color="white">
           AI-MUnit-Factory
@@ -84,7 +101,9 @@ const Sidebar: React.FC = () => {
                   "&:hover": { bgcolor: "rgba(255,255,255,0.1)" },
                 }}
               >
-                <ListItemIcon sx={{ color: active ? "white" : "rgba(255,255,255,0.7)", minWidth: 40 }}>
+                <ListItemIcon
+                  sx={{ color: active ? "white" : "rgba(255,255,255,0.7)", minWidth: 40 }}
+                >
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText
@@ -103,11 +122,10 @@ const Sidebar: React.FC = () => {
 
       <Box sx={{ flexGrow: 1 }} />
 
-      {/* Logout */}
       <Box sx={{ px: 1, pb: 1 }}>
         <ListItem disablePadding>
           <ListItemButton
-            onClick={handleLogout}
+            onClick={onLogout}
             sx={{ borderRadius: 2, "&:hover": { bgcolor: "rgba(255,255,255,0.1)" } }}
           >
             <ListItemIcon sx={{ color: "rgba(255,255,255,0.7)", minWidth: 40 }}>
@@ -132,62 +150,96 @@ const Sidebar: React.FC = () => {
   );
 };
 
-const isAuthenticated = () => !!localStorage.getItem("access_token");
+// ── Auth-aware shell ──────────────────────────────────────────────────────────
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  if (!isAuthenticated()) {
+const AuthenticatedShell: React.FC<{
+  authenticated: boolean;
+  onLogout: () => void;
+  children: React.ReactNode;
+}> = ({ authenticated, onLogout, children }) => {
+  const navigate = useNavigate();
+
+  if (!authenticated) {
     return <Navigate to="/login" replace />;
   }
-  return <>{children}</>;
+
+  return (
+    <Box sx={{ display: "flex", minHeight: "100vh" }}>
+      <Sidebar onLogout={onLogout} />
+      <Box
+        component="main"
+        sx={{ flexGrow: 1, bgcolor: "background.default", overflow: "auto" }}
+      >
+        {children}
+      </Box>
+    </Box>
+  );
 };
 
-const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Box sx={{ display: "flex", minHeight: "100vh" }}>
-    <Sidebar />
-    <Box component="main" sx={{ flexGrow: 1, bgcolor: "background.default", overflow: "auto" }}>
-      {children}
-    </Box>
-  </Box>
-);
+// ── Root App ──────────────────────────────────────────────────────────────────
 
 const App: React.FC = () => {
+  const [authenticated, setAuthenticated] = useState(
+    () => !!localStorage.getItem("access_token")
+  );
+
+  // Listen for 401 events dispatched by the axios interceptor
+  useEffect(() => {
+    const handleLogout = () => setAuthenticated(false);
+    window.addEventListener("auth:logout", handleLogout);
+    return () => window.removeEventListener("auth:logout", handleLogout);
+  }, []);
+
+  const handleLogin = (token: string) => {
+    localStorage.setItem("access_token", token);
+    setAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    setAuthenticated(false);
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <BrowserRouter>
         <Routes>
-          {/* Public route — no sidebar */}
-          <Route path="/login" element={<Login />} />
+          {/* Public */}
+          <Route
+            path="/login"
+            element={
+              authenticated ? (
+                <Navigate to="/" replace />
+              ) : (
+                <Login onLogin={handleLogin} />
+              )
+            }
+          />
 
-          {/* Protected routes — with sidebar */}
+          {/* Protected */}
           <Route
             path="/"
             element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <Dashboard />
-                </AppLayout>
-              </ProtectedRoute>
+              <AuthenticatedShell authenticated={authenticated} onLogout={handleLogout}>
+                <Dashboard />
+              </AuthenticatedShell>
             }
           />
           <Route
             path="/applications"
             element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <Applications />
-                </AppLayout>
-              </ProtectedRoute>
+              <AuthenticatedShell authenticated={authenticated} onLogout={handleLogout}>
+                <Applications />
+              </AuthenticatedShell>
             }
           />
           <Route
             path="/executive-report"
             element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <ExecutiveReport />
-                </AppLayout>
-              </ProtectedRoute>
+              <AuthenticatedShell authenticated={authenticated} onLogout={handleLogout}>
+                <ExecutiveReport />
+              </AuthenticatedShell>
             }
           />
 

@@ -28,9 +28,9 @@ function createApiClient(): AxiosInstance {
   client.interceptors.response.use(
     (res) => res,
     (err) => {
-      if (err.response?.status === 401 && window.location.pathname !== "/login") {
+      if (err.response?.status === 401) {
         localStorage.removeItem("access_token");
-        window.location.href = "/login";
+        window.dispatchEvent(new CustomEvent("auth:logout"));
       }
       return Promise.reject(err);
     }
