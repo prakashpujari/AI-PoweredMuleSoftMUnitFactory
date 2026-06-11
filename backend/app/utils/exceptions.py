@@ -97,6 +97,6 @@ def register_exception_handlers(app: FastAPI) -> None:
             content={
                 "error": "INTERNAL_ERROR",
                 "message": "An unexpected error occurred",
-                "details": None,
+                "details": f"{type(exc).__name__}: {exc}",
             },
         )
