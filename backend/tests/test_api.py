@@ -1,5 +1,6 @@
 """Integration tests for FastAPI endpoints (using TestClient + in-memory SQLite)."""
 import pytest
+from unittest.mock import patch, AsyncMock
 
 try:
     from app.main import app

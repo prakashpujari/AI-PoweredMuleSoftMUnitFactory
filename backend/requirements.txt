@@ -43,3 +43,4 @@ tenacity==9.0.0
 aiofiles==24.1.0
 arrow==1.3.0
 jinja2==3.1.4
+greenlet
