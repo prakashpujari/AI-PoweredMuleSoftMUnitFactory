@@ -66,6 +66,7 @@ Output ONLY valid MUnit XML, no markdown or explanations."""
 
         connectors_str = ", ".join(connectors) if connectors else "none"
         test_types_str = "\n".join(f"- {t}" for t in test_types)
+        raml_section = "RAML Specification:\n" + raml_spec if raml_spec else ""
 
         user = f"""Generate comprehensive MUnit tests for this Mule 4 flow.
 
@@ -74,7 +75,7 @@ Connectors Used: {connectors_str}
 Required Test Types:
 {test_types_str}
 
-{"RAML Specification:\n" + raml_spec if raml_spec else ""}
+{raml_section}
 
 Mule Flow XML:
 {flow_xml}
